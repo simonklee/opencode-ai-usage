@@ -80,7 +80,7 @@ function SharedWidthBar(props: {
   const measure = () => {
     setImmediate(() => {
       if (disposed) return;
-      const measured = ref?.getLayoutNode?.().getComputedWidth();
+      const measured = ref?.width ?? ref?.getLayoutNode?.().getComputedWidth();
       if (Number.isFinite(measured) && measured > 0) props.onMeasure(measured);
     });
   };
