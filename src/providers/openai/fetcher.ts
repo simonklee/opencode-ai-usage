@@ -77,7 +77,7 @@ export async function fetchUsage(
     let profileArrived = false;
     let profileGraceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const PROFILE_GRACE_MS = 1_000;
+    const PROFILE_GRACE_MS = 5_000;
 
     const finalize = () => {
       const windows = snapshotToWindows(snapshot);

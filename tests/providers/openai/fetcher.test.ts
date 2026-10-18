@@ -410,6 +410,50 @@ describe("RPC timeout", () => {
   });
 });
 
+describe("profile grace period", () => {
+  function startWithRateLimitsOnly() {
+    const child = createFakeChild();
+    const deps = createFakeDeps({
+      spawn: vi.fn().mockReturnValue(child) as unknown as ProviderDeps["spawn"],
+    });
+    const promise = fetchUsage(deps, new AbortController().signal);
+    child.stdout.emit("data", Buffer.from(initializeResponse()));
+    child.stdout.emit(
+      "data",
+      Buffer.from(rateLimitsResponse({ primary: { usedPercent: 10, windowDurationMins: 300 } })),
+    );
+    return { child, promise };
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("waits for a profile that arrives a few seconds after rate limits", async () => {
+    vi.useFakeTimers();
+    const { child, promise } = startWithRateLimitsOnly();
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    child.stdout.emit("data", Buffer.from(accountResponse("late@example.com", "plus")));
+
+    const result = await promise;
+    expect(result.accountKey).toBe("late@example.com");
+    expect(result.profile).toEqual({ email: "late@example.com", plan: "plus" });
+  });
+
+  it("resolves without a profile once the grace period elapses", async () => {
+    vi.useFakeTimers();
+    const { promise } = startWithRateLimitsOnly();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    const result = await promise;
+    expect(result.accountKey).toBeNull();
+    expect(result.profile).toBeNull();
+    expect(result.windows).toHaveLength(1);
+  });
+});
+
 describe("malformed JSON-RPC response", () => {
   it("kills child and throws on invalid JSON", async () => {
     const child = createFakeChild();
